@@ -39,4 +39,7 @@ enroot import -o ~/aws-nemo-25-07.sqsh dockerd://aws-nemo:25.07
 }
 ```
 
-## 4. [WIP] Modify `slurm_executor` implementation in performance scripts to use EFA
+## 4. Modify `slurm_executor` implementation in performance scripts to use EFA
+
+## 5. To change `seq_len` (8192 by default)
+Edit the individual recipe file. Example: [Llama3-70B](https://github.com/amanshanbhag/NeMo-AWS/blob/067d83c9b2da632df2b12a562b7f19854eb3b20b/nemo/collections/llm/recipes/llama3_70b.py#L192)
