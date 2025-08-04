@@ -43,3 +43,10 @@ enroot import -o ~/aws-nemo-25-07.sqsh dockerd://aws-nemo:25.07
 
 ## 5. To change `seq_len` (8192 by default)
 Edit the individual recipe file. Example: [Llama3-70B](https://github.com/amanshanbhag/NeMo-AWS/blob/067d83c9b2da632df2b12a562b7f19854eb3b20b/nemo/collections/llm/recipes/llama3_70b.py#L192)
+
+## 6. Modify `gradient_accumulation`:
+While there is no direct knob to change the `ga` value, we would have to calculate it manually using the knobs available to us:
+```
+ga = (gbs) / (mbs * dp)
+dp = (num_gpus) / (tp * pp * cp)
+```
