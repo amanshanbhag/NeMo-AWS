@@ -7,9 +7,8 @@ This README is to be used as a step-by-step guide on using [NVIDIA's performance
 conda create --name nemo python==3.10.12
 conda activate nemo
 
-pip install "nemo_toolkit[all]"
-
 git clone https://github.com/NVIDIA/NeMo
+git checkout v2.5.0rc0
 cd NeMo
 pip install '.[all]'
 ```
