@@ -10,7 +10,7 @@ conda activate nemo
 git clone https://github.com/NVIDIA/NeMo
 git checkout v2.5.0rc0
 cd NeMo
-pip install '.[all]'
+pip install -e '.[all]'
 ```
 
 ## 1. Create Custom Dockerfile
