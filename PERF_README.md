@@ -26,25 +26,27 @@ sudo docker build --progress=plain -t aws-nemo:25.07 -f Dockerfile .
 enroot import -o ~/aws-nemo-25-07.sqsh dockerd://aws-nemo:25.07
 ```
 
-## 3. Create an `env_vars.json` file:
-```json
-{
-    "TORCH_NCCL_AVOID_RECORD_STREAMS": "1",
-    "NVTE_DP_AMAX_REDUCE_INTERVAL": "0",
-    "NVTE_ASYNC_AMAX_REDUCTION": "1",
-    "NVTE_FUSED_ATTN": "0",
-    "FI_PROVIDER": "efa",
-    "FI_EFA_USE_HUGE_PAGE": "0",
-    "NCCL_DEBUG": "INFO"
-}
+## 3. Modify `slurm_executor` implementation in performance scripts to use EFA
+This fork already has this change, but for information, the configuration looks like this for the `slurm_executor` [definition](https://github.com/amanshanbhag/NeMo-AWS/blob/main/scripts/performance/executors.py):
+```python
+    PERF_ENV_VARS = {
+        "TORCH_NCCL_AVOID_RECORD_STREAMS": "1",  # Disable caching NCCL communication buffer memory
+        "TRANSFORMERS_OFFLINE": "1",  # Enable online downloads from HuggingFace
+        "TOKENIZERS_PARALLELISM": "False",  # Restrict warning message prints
+        "NCCL_NVLS_ENABLE": "0",  # Disable NVLink SHARP to save memory
+        "NVTE_FLASH_ATTN": "1",  # Enable Flash Attention, which is needed to enable cuDNN fused attention
+        "NVTE_FUSED_ATTN": "1",  # Enable cuDNN fused attention
+        "NEMO_LOG_MEMORY_USAGE": "1",  # Print memory allocation
+        "FI_PROVIDER": "efa",
+        "FI_EFA_USE_HUGE_PAGE": "0",
+        "NCCL_DEBUG": "INFO"
+    }
 ```
 
-## 4. Modify `slurm_executor` implementation in performance scripts to use EFA
-
-## 5. To change `seq_len` (8192 by default)
+## 4. To change `seq_len` (8192 by default)
 Edit the individual recipe file. Example: [Llama3-70B](https://github.com/amanshanbhag/NeMo-AWS/blob/067d83c9b2da632df2b12a562b7f19854eb3b20b/nemo/collections/llm/recipes/llama3_70b.py#L192)
 
-## 6. Modify `gradient_accumulation`:
+## 5. To modify `gradient_accumulation`:
 While there is no direct knob to change the `ga` value, we would have to calculate it manually using the knobs available to us:
 ```
 ga = (gbs) / (mbs * dp)
