@@ -51,3 +51,19 @@ While there is no direct knob to change the `ga` value, we would have to calcula
 ga = (gbs) / (mbs * dp)
 dp = (num_gpus) / (tp * pp * cp)
 ```
+
+## 6. To get results
+Your resulting training will likely look like:
+```
+...
+Training epoch 0, iteration 74/99 | lr: 1.124e-05 | global_batch_size: 128 | global_step: 74 | max_memory_reserved: 64286097408 | max_memory_allocated: 62777982976 | reduced_train_loss: 11.87 | train_step_timing in s: 8.768 | TFLOPS_per_GPU: 865.7 | consumed_samples: 9600
+Training epoch 0, iteration 75/99 | lr: 1.139e-05 | global_batch_size: 128 | global_step: 75 | max_memory_reserved: 64286097408 | max_memory_allocated: 62777982976 | reduced_train_loss: 11.87 | train_step_timing in s: 8.748 | TFLOPS_per_GPU: 867.7 | consumed_samples: 9728
+Training epoch 0, iteration 76/99 | lr: 1.154e-05 | global_batch_size: 128 | global_step: 76 | max_memory_reserved: 64286097408 | max_memory_allocated: 62777982976 | reduced_train_loss: 11.87 | train_step_timing in s: 8.756 | TFLOPS_per_GPU: 866.9 | consumed_samples: 9856
+...
+```
+
+The relevant metrics are `TFLOPS_per_GPU` and `train_step_timing`.
+Throughput (in tps) can be calculated with:
+```
+tp = (seq_len * gbs) / (train_step_timing)
+```
