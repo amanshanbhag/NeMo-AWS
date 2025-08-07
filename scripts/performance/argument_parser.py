@@ -394,6 +394,14 @@ def parse_cli_args():
         default=None,
     )
 
+    parser.add_argument(
+        "--seq-len",
+        "--sl",
+        type=str,
+        help="Path to the JSON file with environment variables",
+        default="env_vars.json"
+    )   
+
     # parser.add_argument(
     #     "--env_vars_file",
     #     type=str,
