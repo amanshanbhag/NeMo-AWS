@@ -45,6 +45,11 @@ This fork already has this change, but for information, the configuration looks 
 ## 4. To change `seq_len` (8192 by default)
 Edit the individual recipe file. Example: [Llama3-70B](https://github.com/amanshanbhag/NeMo-AWS/blob/067d83c9b2da632df2b12a562b7f19854eb3b20b/nemo/collections/llm/recipes/llama3_70b.py#L192)
 
+Make sure you also use the right buffer value from [here](https://github.com/amanshanbhag/NeMo-AWS/blob/main/nemo/collections/llm/recipes/tp_overlap_configs/userbuffers.py). Otherwise, you will get:
+```
+[rank1]: RuntimeError: /opt/TransformerEngine/transformer_engine/pytorch/csrc/extensions/comm_gemm_overlap.cpp:261 in function copy_into_buffer: Assertion failed: _ubufs[_tp_id].numel() == input_size. Tried to copy an invalid tensor into a local chunk of a Userbuffers buffer (input_size=8388608, local_ubuf_size=16777216)
+```
+
 ## 5. To modify `gradient_accumulation`:
 While there is no direct knob to change the `ga` value, we would have to calculate it manually using the knobs available to us:
 ```
