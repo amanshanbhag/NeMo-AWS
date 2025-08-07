@@ -49,6 +49,7 @@ Make sure you also use the right buffer value from [here](https://github.com/ama
 ```
 [rank1]: RuntimeError: /opt/TransformerEngine/transformer_engine/pytorch/csrc/extensions/comm_gemm_overlap.cpp:261 in function copy_into_buffer: Assertion failed: _ubufs[_tp_id].numel() == input_size. Tried to copy an invalid tensor into a local chunk of a Userbuffers buffer (input_size=8388608, local_ubuf_size=16777216)
 ```
+You can directly modify the performance script for this  
 
 ## 5. To modify `gradient_accumulation`:
 While there is no direct knob to change the `ga` value, we would have to calculate it manually using the knobs available to us:
