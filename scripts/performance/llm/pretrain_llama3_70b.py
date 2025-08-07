@@ -19,21 +19,18 @@ import fiddle._src.experimental.dataclasses as fdl_dc
 import nemo_run as run
 
 from nemo.collections.llm.recipes.llama3_70b import pretrain_recipe
-# Diff: Importing buffers for 4096 and 16384 and 2048
+# Diff: Importing buffers for 4096 and 2048
 from nemo.collections.llm.recipes.tp_overlap_configs.userbuffers import (
-    userbuffers_bf16_b200_h8192_tp2_mbs1_seqlen8192,
+    # 8192 sequence length configs
     userbuffers_bf16_h100_h8192_tp4_mbs1_seqlen8192,
-    userbuffers_fp8_b200_h8192_tp2_mbs1_seqlen8192,
     userbuffers_fp8_h100_h8192_tp4_mbs1_seqlen8192,
+    userbuffers_bf16_b200_h8192_tp2_mbs1_seqlen8192,
+    userbuffers_fp8_b200_h8192_tp2_mbs1_seqlen8192,
+    # 4096 sequence length configs
     userbuffers_bf16_b200_h6144_tp2_mbs1_seqlen4096,
     userbuffers_bf16_b200_h18432_tp8_mbs1_seqlen4096,
     userbuffers_fp8_b200_h18432_tp8_mbs1_seqlen4096,
-    userbuffers_bf16_h100_h6144_tp2_mbs2_seqlen16384,
-    userbuffers_fp8_h100_h6144_tp2_mbs2_seqlen16384,
-    userbuffers_bf16_h100_h12288_tp4_mbs1_seqlen16384,
-    userbuffers_fp8_h100_h12288_tp4_mbs1_seqlen16384,
-    userbuffers_bf16_b200_h12288_tp4_mbs1_seqlen16384,
-    userbuffers_fp8_b200_h12288_tp4_mbs1_seqlen16384,
+    # 2048 sequence length configs
     userbuffers_bf16_h100_h6144_tp2_mbs2_seqlen2048,
     userbuffers_fp8_h100_h6144_tp2_mbs2_seqlen2048,
     userbuffers_bf16_h100_h12288_tp4_mbs1_seqlen2048,
@@ -41,6 +38,7 @@ from nemo.collections.llm.recipes.tp_overlap_configs.userbuffers import (
     userbuffers_bf16_b200_h12288_tp4_mbs1_seqlen2048,
     userbuffers_fp8_b200_h12288_tp4_mbs1_seqlen2048,
 )
+
 from nemo.collections.nlp.modules.common.tokenizer_utils import get_nmt_tokenizer
 from nemo.lightning.run.plugins import MemoryProfilePlugin, NsysPlugin, PerfEnvPlugin
 
@@ -71,18 +69,8 @@ def get_user_buffer_config(gpu_type, compute_dtype, seq_len, tp_size, mbs):
         ("gb200", "bf16", 4096, 2, 1): userbuffers_bf16_b200_h6144_tp2_mbs1_seqlen4096,
         ("gb200", "bf16", 4096, 8, 1): userbuffers_bf16_b200_h18432_tp8_mbs1_seqlen4096,
         ("gb200", "fp8", 4096, 8, 1): userbuffers_fp8_b200_h18432_tp8_mbs1_seqlen4096,
-        
-        # 16384 sequence length configs
-        ("h100", "bf16", 16384, 2, 2): userbuffers_bf16_h100_h6144_tp2_mbs2_seqlen16384,
-        ("h100", "fp8", 16384, 2, 2): userbuffers_fp8_h100_h6144_tp2_mbs2_seqlen16384,
-        ("h100", "bf16", 16384, 4, 1): userbuffers_bf16_h100_h12288_tp4_mbs1_seqlen16384,
-        ("h100", "fp8", 16384, 4, 1): userbuffers_fp8_h100_h12288_tp4_mbs1_seqlen16384,
-        ("b200", "bf16", 16384, 4, 1): userbuffers_bf16_b200_h12288_tp4_mbs1_seqlen16384,
-        ("b200", "fp8", 16384, 4, 1): userbuffers_fp8_b200_h12288_tp4_mbs1_seqlen16384,
-        ("gb200", "bf16", 16384, 4, 1): userbuffers_bf16_b200_h12288_tp4_mbs1_seqlen16384,
-        ("gb200", "fp8", 16384, 4, 1): userbuffers_fp8_b200_h12288_tp4_mbs1_seqlen16384,
 
-        # 2048 sequence length configs (fix: was 16384)
+        # 2048 sequence length configs
         ("h100", "bf16", 2048, 2, 2): userbuffers_bf16_h100_h6144_tp2_mbs2_seqlen2048,
         ("h100", "fp8", 2048, 2, 2): userbuffers_fp8_h100_h6144_tp2_mbs2_seqlen2048,
         ("h100", "bf16", 2048, 4, 1): userbuffers_bf16_h100_h12288_tp4_mbs1_seqlen2048,
@@ -130,7 +118,7 @@ def override_recipe_configs(
     recipe.data.seq_length = seq_len
 
     # Diff: Set sequence length in model config
-    recipe.model.seq_length = seq_len
+    recipe.model.config.seq_length = seq_len
 
     recipe = set_primary_perf_configs(
         recipe,
