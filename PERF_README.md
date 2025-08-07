@@ -73,3 +73,8 @@ Throughput (in tps) can be calculated with:
 ```
 tp = (seq_len * gbs) / (train_step_timing)
 ```
+
+Use this to find the highest TFLOPS_per_GPU value
+```bash
+grep "TFLOPS_per_GPU" filename | sort -k12 -nr | head -1
+```
