@@ -394,6 +394,7 @@ def parse_cli_args():
         default=None,
     )
 
+    # WARNING: ONLY USE WITH LLAMA3-70B PERFORMANCE SCRIPT
     parser.add_argument(
         "--seq-len",
         "--sl",
