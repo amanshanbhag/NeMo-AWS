@@ -19,11 +19,27 @@ import fiddle._src.experimental.dataclasses as fdl_dc
 import nemo_run as run
 
 from nemo.collections.llm.recipes.llama3_70b import pretrain_recipe
+# Diff: Importing buffers for 4096 and 16384 and 2048
 from nemo.collections.llm.recipes.tp_overlap_configs.userbuffers import (
     userbuffers_bf16_b200_h8192_tp2_mbs1_seqlen8192,
     userbuffers_bf16_h100_h8192_tp4_mbs1_seqlen8192,
     userbuffers_fp8_b200_h8192_tp2_mbs1_seqlen8192,
     userbuffers_fp8_h100_h8192_tp4_mbs1_seqlen8192,
+    userbuffers_bf16_b200_h6144_tp2_mbs1_seqlen4096,
+    userbuffers_bf16_b200_h18432_tp8_mbs1_seqlen4096,
+    userbuffers_fp8_b200_h18432_tp8_mbs1_seqlen4096,
+    userbuffers_bf16_h100_h6144_tp2_mbs2_seqlen16384,
+    userbuffers_fp8_h100_h6144_tp2_mbs2_seqlen16384,
+    userbuffers_bf16_h100_h12288_tp4_mbs1_seqlen16384,
+    userbuffers_fp8_h100_h12288_tp4_mbs1_seqlen16384,
+    userbuffers_bf16_b200_h12288_tp4_mbs1_seqlen16384,
+    userbuffers_fp8_b200_h12288_tp4_mbs1_seqlen16384,
+    userbuffers_bf16_h100_h6144_tp2_mbs2_seqlen2048,
+    userbuffers_fp8_h100_h6144_tp2_mbs2_seqlen2048,
+    userbuffers_bf16_h100_h12288_tp4_mbs1_seqlen2048,
+    userbuffers_fp8_h100_h12288_tp4_mbs1_seqlen2048,
+    userbuffers_bf16_b200_h12288_tp4_mbs1_seqlen2048,
+    userbuffers_fp8_b200_h12288_tp4_mbs1_seqlen2048,
 )
 from nemo.collections.nlp.modules.common.tokenizer_utils import get_nmt_tokenizer
 from nemo.lightning.run.plugins import MemoryProfilePlugin, NsysPlugin, PerfEnvPlugin
@@ -33,6 +49,52 @@ from ..executors import slurm_executor
 from ..helpers import args_sanity_check, get_user_configs, set_exp_logging_configs, set_primary_perf_configs
 from ..utils import dump_config_diff_from_base_recipe, get_comm_overlap_callback_idx, hf_tokenizer
 
+
+# Diff: Creating a function to replace the ub_cfg dict. Selects buffer based on sequence length
+def get_user_buffer_config(gpu_type, compute_dtype, seq_len, tp_size, mbs):
+    """Get appropriate user buffer config based on parameters."""
+    
+    # Map configurations by (gpu_type, compute_dtype, seq_len, tp_size, mbs)
+    config_map = {
+        # 8192 sequence length configs
+        ("h100", "bf16", 8192, 4, 1): userbuffers_bf16_h100_h8192_tp4_mbs1_seqlen8192,
+        ("h100", "fp8", 8192, 4, 1): userbuffers_fp8_h100_h8192_tp4_mbs1_seqlen8192,
+        ("b200", "bf16", 8192, 2, 1): userbuffers_bf16_b200_h8192_tp2_mbs1_seqlen8192,
+        ("b200", "fp8", 8192, 2, 1): userbuffers_fp8_b200_h8192_tp2_mbs1_seqlen8192,
+        ("gb200", "bf16", 8192, 2, 1): userbuffers_bf16_b200_h8192_tp2_mbs1_seqlen8192,
+        ("gb200", "fp8", 8192, 2, 1): userbuffers_fp8_b200_h8192_tp2_mbs1_seqlen8192,
+        
+        # 4096 sequence length configs
+        ("b200", "bf16", 4096, 2, 1): userbuffers_bf16_b200_h6144_tp2_mbs1_seqlen4096,
+        ("b200", "bf16", 4096, 8, 1): userbuffers_bf16_b200_h18432_tp8_mbs1_seqlen4096,
+        ("b200", "fp8", 4096, 8, 1): userbuffers_fp8_b200_h18432_tp8_mbs1_seqlen4096,
+        ("gb200", "bf16", 4096, 2, 1): userbuffers_bf16_b200_h6144_tp2_mbs1_seqlen4096,
+        ("gb200", "bf16", 4096, 8, 1): userbuffers_bf16_b200_h18432_tp8_mbs1_seqlen4096,
+        ("gb200", "fp8", 4096, 8, 1): userbuffers_fp8_b200_h18432_tp8_mbs1_seqlen4096,
+        
+        # 16384 sequence length configs
+        ("h100", "bf16", 16384, 2, 2): userbuffers_bf16_h100_h6144_tp2_mbs2_seqlen16384,
+        ("h100", "fp8", 16384, 2, 2): userbuffers_fp8_h100_h6144_tp2_mbs2_seqlen16384,
+        ("h100", "bf16", 16384, 4, 1): userbuffers_bf16_h100_h12288_tp4_mbs1_seqlen16384,
+        ("h100", "fp8", 16384, 4, 1): userbuffers_fp8_h100_h12288_tp4_mbs1_seqlen16384,
+        ("b200", "bf16", 16384, 4, 1): userbuffers_bf16_b200_h12288_tp4_mbs1_seqlen16384,
+        ("b200", "fp8", 16384, 4, 1): userbuffers_fp8_b200_h12288_tp4_mbs1_seqlen16384,
+        ("gb200", "bf16", 16384, 4, 1): userbuffers_bf16_b200_h12288_tp4_mbs1_seqlen16384,
+        ("gb200", "fp8", 16384, 4, 1): userbuffers_fp8_b200_h12288_tp4_mbs1_seqlen16384,
+
+        # 2048 sequence length configs (fix: was 16384)
+        ("h100", "bf16", 2048, 2, 2): userbuffers_bf16_h100_h6144_tp2_mbs2_seqlen2048,
+        ("h100", "fp8", 2048, 2, 2): userbuffers_fp8_h100_h6144_tp2_mbs2_seqlen2048,
+        ("h100", "bf16", 2048, 4, 1): userbuffers_bf16_h100_h12288_tp4_mbs1_seqlen2048,
+        ("h100", "fp8", 2048, 4, 1): userbuffers_fp8_h100_h12288_tp4_mbs1_seqlen2048,
+        ("b200", "bf16", 2048, 4, 1): userbuffers_bf16_b200_h12288_tp4_mbs1_seqlen2048,
+        ("b200", "fp8", 2048, 4, 1): userbuffers_fp8_b200_h12288_tp4_mbs1_seqlen2048,
+        ("gb200", "bf16", 2048, 4, 1): userbuffers_bf16_b200_h12288_tp4_mbs1_seqlen2048,
+        ("gb200", "fp8", 2048, 4, 1): userbuffers_fp8_b200_h12288_tp4_mbs1_seqlen2048,
+    }
+    
+    key = (gpu_type, compute_dtype, seq_len, tp_size, mbs)
+    return config_map.get(key)
 
 def override_recipe_configs(
     args: str,
@@ -58,7 +120,18 @@ def override_recipe_configs(
 
     NOTE: Use fp8 precision training with caution. It might not give desirable results.
     """
+
+    # Diff: Get sequence length from args, default to 8192
+    seq_len = getattr(args, 'seq_len', 8192)
+
     recipe = pretrain_recipe(performance_mode=True)
+
+    # Diff: Set sequence length in data config
+    recipe.data.seq_length = seq_len
+
+    # Diff: Set sequence length in model config
+    recipe.model.seq_length = seq_len
+
     recipe = set_primary_perf_configs(
         recipe,
         "pre_train",
@@ -99,6 +172,7 @@ def override_recipe_configs(
         )
         recipe.model.tokenizer = recipe.data.tokenizer
 
+    # Diff: Only use this dict as a fallback (in case exact tp, pp configs are not found)
     ub_cfg = {
         "h100": {
             "bf16": userbuffers_bf16_h100_h8192_tp4_mbs1_seqlen8192,
@@ -114,14 +188,40 @@ def override_recipe_configs(
         },
     }
 
+    # comm_overlap_callback_idx = get_comm_overlap_callback_idx(recipe.trainer.callbacks)
+    # assert comm_overlap_callback_idx is not None, "MegatronCommOverlapCallback missing. Required for performance."
+
+    # tp_comm_overlap_cfg = ub_cfg[gpu_type][args.compute_dtype]
+    # # needed as tp_overlap_configs.userbuffers are dataclass objects which are unserializable
+    # tp_comm_overlap_cfg = fdl.cast(run.Config, fdl_dc.convert_dataclasses_to_configs(tp_comm_overlap_cfg))
+    # recipe.trainer.callbacks[comm_overlap_callback_idx].tp_comm_overlap_cfg = tp_comm_overlap_cfg
+    # return recipe
+
+    # Diff: Use a combination of existing logic (ub_cfg) and new logic (newly defined get_user_buffer_config())
     comm_overlap_callback_idx = get_comm_overlap_callback_idx(recipe.trainer.callbacks)
     assert comm_overlap_callback_idx is not None, "MegatronCommOverlapCallback missing. Required for performance."
 
-    tp_comm_overlap_cfg = ub_cfg[gpu_type][args.compute_dtype]
-    # needed as tp_overlap_configs.userbuffers are dataclass objects which are unserializable
+    # Try to get  match first
+    tp_comm_overlap_cfg = get_user_buffer_config(gpu_type, args.compute_dtype, seq_len, tp_size, mbs)
+
+    # If no exact match, fall back to original behavior
+    if tp_comm_overlap_cfg is None:
+        # For sequence length 8192, fall back to default dict
+        if seq_len == 8192:
+            tp_comm_overlap_cfg = ub_cfg[gpu_type][args.compute_dtype]
+        # For other sequence lengths, disable user buffers to avoid memory errors (tensor size mismatch)
+        else:
+            print(f"Warning: No user buffer config for seq_length={seq_len}, tp={tp_size}, pp={pp_size}, mbs={mbs}. Disabling user buffers. This may have perf implications.")
+            recipe.trainer.callbacks[comm_overlap_callback_idx].tp_comm_overlap = False
+            return recipe
+                
+    # Needed as tp_overlap_configs.userbuffers are dataclass objects which are unserializable
     tp_comm_overlap_cfg = fdl.cast(run.Config, fdl_dc.convert_dataclasses_to_configs(tp_comm_overlap_cfg))
     recipe.trainer.callbacks[comm_overlap_callback_idx].tp_comm_overlap_cfg = tp_comm_overlap_cfg
+
     return recipe
+
+
 
 
 if __name__ == "__main__":
