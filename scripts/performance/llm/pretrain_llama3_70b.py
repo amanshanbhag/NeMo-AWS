@@ -110,7 +110,7 @@ def override_recipe_configs(
     """
 
     # Diff: Get sequence length from args, default to 8192
-    seq_len = getattr(args, 'seq_len', 8192)
+    seq_len = int(getattr(args, 'seq_len', 8192))
 
     recipe = pretrain_recipe(performance_mode=True)
 
