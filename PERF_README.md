@@ -76,5 +76,43 @@ tp = (seq_len * gbs) / (train_step_timing)
 
 Use this to find the highest TFLOPS_per_GPU value
 ```bash
-grep "TFLOPS_per_GPU" filename | sort -k12 -nr | head -1
-```
+grep 'train_step_timing in s:' <script> |
+awk '
+    NR > 3 &&                                         # skip first 3 matches
+    match($0,/train_step_timing in s:[[:space:]]*([0-9.+-e]+)/,t) &&
+    match($0,/TFLOPS_per_GPU:[[:space:]]*([0-9.+-e]+)/,f) {
+
+        time  = t[1] + 0           # seconds  (weight)
+        flops = f[1] + 0           # TFLOPS/GPU
+
+        # ---- timing stats (un-weighted) ----
+        n      += 1                # iteration counter
+        sum_t  += time             # Σ t
+        sum_t2 += time * time      # Σ t²
+
+        # ---- FLOPS stats (time-weighted) ----
+        W   += time                # Σ w
+        S1  += time * flops        # Σ w·x
+        S2  += time * flops * flops# Σ w·x²
+    }
+    END {
+        if (n == 0) { print "no data"; exit }
+
+        # timing mean & std-dev (population)
+        mean_t = sum_t / n
+        std_t  = sqrt(sum_t2 / n - mean_t * mean_t)
+
+        # time-weighted FLOPS mean & std-dev (population)
+        mean_f = S1 / W
+        std_f  = sqrt(S2 / W - mean_f * mean_f)
+
+        # tokens/sec/GPU using n
+        tps_gpu = n * 8192 * 128 / sum_t / 64
+
+        printf "samples processed            : %d\n", n
+        printf "avg train_step_timing (s)     : %.3f\n", mean_t
+        printf "stddev train_step_timing (s)  : %.3f\n", std_t
+        printf "time-weighted mean TFLOPS/GPU : %.3f\n", mean_f
+        printf "weighted stddev TFLOPS/GPU    : %.3f\n", std_f
+        printf "tokens/sec/GPU               : %.2f\n", tps_gpu
+    }'```
